@@ -1,4 +1,4 @@
-# Manual Approval Turborepo
+# Approval Deploy Turborepo
 
 Turborepo with two applications manual approval for Vercel production deployments.
 
