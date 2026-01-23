@@ -1,47 +1,36 @@
-# Turborepo Starter
+# Manual Approval Turborepo
 
-## Getting Started
+Turborepo with manual approval for Vercel production deployments.
 
-This repository is a simple Turborepo starter that contains the basic Turborepo setup and configuration.
+## Deployment Flow
 
-To start using, you can use the following commands:
+1. **PR** → automatic preview deployment (Vercel)
+2. **Merge to main** → automatic dev/qa deployment
+3. **Manual approval** → promote to production (no rebuild)
 
-```zsh
-pnpm install
-pnpm dev
-pnpm build
-pnpm test
-```
+## Setup
 
-This project also has some configured some tools like:
+### GitHub Secrets
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [Vitest](https://vitest.dev/) for unit testing
-- [Biome](https://biomejs.dev/) for code linting & formatting
+Add to repository settings → Secrets and variables → Actions:
 
-## Applications
+- `VERCEL_TOKEN`: [Create token](https://vercel.com/account/tokens)
+- `VERCEL_ORG_ID`: Run `vercel link` then check `.vercel/project.json`
+- `VERCEL_PROJECT_ID`: Run `vercel link` then check `.vercel/project.json`
 
-Located under `/apps`, you will find an application.
+### GitHub Environments
 
-- `web`: a simple [Next.js](https://nextjs.org/) app
+Create in repository settings → Environments:
 
-## Packages
+1. **dev** - no protection rules
+2. **production-approval** - enable "Required reviewers" (add yourself)
+3. **production** - no protection rules
 
-In this example, there is a shared package called `ui` which is basic [`shadcn/ui`](https://ui.shadcn.com/) package.
+## How to Deploy to Production
 
-## Shared Configuration
-
-Located under `/packages/config` is all the shared configuration which the Turborepo uses. This is a great space to put
-handy developer tools and code cleanliness configuration.
-
-- `@repo/vitest-config`: `vitest` configurations for `base` and `ui` configurations
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-## Useful Turborepo Links
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+1. Merge PR to main
+2. Dev/QA deploys automatically
+3. Go to Actions tab → find workflow run
+4. Click "Review deployments" button
+5. Approve "production-approval" environment
+6. Production promotion runs (promotes existing deployment)
