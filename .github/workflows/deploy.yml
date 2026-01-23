@@ -1,81 +1,24 @@
 name: deploy
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: "vercel deployment url to promote"
+        required: true
+        type: string
 
 jobs:
-  # auto deploy to dev on main merge
-  deploy-dev:
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to Dev
-        run: |
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=dev > deployment-url.txt
-          echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
-
-      - name: Comment Dev Deployment URL
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body: `🚀 Dev Deployment: ${process.env.DEPLOYMENT_URL}`
-            })
-
-  # auto deploy to qa on main merge
-  deploy-qa:
-    runs-on: ubuntu-latest
-    needs: deploy-dev
-    environment: qa
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to QA
-        run: |
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=qa > deployment-url.txt
-          echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
-
-      - name: Comment QA Deployment URL
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body: `🚀 QA Deployment: ${process.env.DEPLOYMENT_URL}`
-            })
-
   # manual approval gate for staging
   approve-staging:
     runs-on: ubuntu-latest
-    needs: deploy-qa
     environment: staging-approval
     steps:
       - name: Manual Approval Required
-        run: echo "Waiting for manual approval to deploy to staging"
+        run: echo "Waiting for manual approval to promote to staging"
 
-  # deploy to staging after approval
-  deploy-staging:
+  # promote to staging after approval
+  promote-staging:
     runs-on: ubuntu-latest
     needs: approve-staging
     environment: staging
@@ -88,12 +31,12 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Staging
+      - name: Promote to Staging
         run: |
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=staging > deployment-url.txt
-          echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+          vercel promote ${{ inputs.deployment_url }} --token=${{ secrets.VERCEL_TOKEN }} --yes
+          echo "✅ Promoted to staging: ${{ inputs.deployment_url }}"
 
-      - name: Comment Staging Deployment URL
+      - name: Comment Staging URL
         uses: actions/github-script@v7
         with:
           script: |
@@ -101,19 +44,19 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `🚀 Staging Deployment: ${process.env.DEPLOYMENT_URL}`
+              body: `🚀 Staging Deployment: ${{ inputs.deployment_url }}`
             })
 
   # manual approval gate for production
   approve-production:
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    needs: promote-staging
     environment: production-approval
     steps:
       - name: Manual Approval Required
         run: echo "Waiting for manual approval to promote to production"
 
-  # promote existing deployment to production (no rebuild)
+  # promote to production after approval
   promote-production:
     runs-on: ubuntu-latest
     needs: approve-production
@@ -127,16 +70,10 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Get Latest Deployment
-        id: get-deployment
-        run: |
-          DEPLOYMENT_URL=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} --yes | head -n 1 | awk '{print $1}')
-          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-
       - name: Promote to Production
         run: |
-          vercel promote ${{ steps.get-deployment.outputs.deployment_url }} --token=${{ secrets.VERCEL_TOKEN }} --yes
-          echo "✅ Promoted to production: ${{ steps.get-deployment.outputs.deployment_url }}"
+          vercel promote ${{ inputs.deployment_url }} --token=${{ secrets.VERCEL_TOKEN }} --yes
+          echo "✅ Promoted to production: ${{ inputs.deployment_url }}"
 
       - name: Comment Production URL
         uses: actions/github-script@v7
@@ -146,5 +83,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `✅ Production Deployment: ${{ steps.get-deployment.outputs.deployment_url }}`
+              body: `✅ Production Deployment: ${{ inputs.deployment_url }}`
             })
