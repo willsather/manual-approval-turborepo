@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  # auto deploy to dev/qa on main merge
+  # auto deploy to dev on main merge
   deploy-dev:
     runs-on: ubuntu-latest
     environment: dev
@@ -19,12 +19,12 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Dev/QA
+      - name: Deploy to Dev
         run: |
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=dev > deployment-url.txt
           echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
 
-      - name: Comment Deployment URL
+      - name: Comment Dev Deployment URL
         uses: actions/github-script@v7
         with:
           script: |
@@ -32,13 +32,82 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `🚀 Dev/QA Deployment: ${process.env.DEPLOYMENT_URL}`
+              body: `🚀 Dev Deployment: ${process.env.DEPLOYMENT_URL}`
+            })
+
+  # auto deploy to qa on main merge
+  deploy-qa:
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    environment: qa
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to QA
+        run: |
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=qa > deployment-url.txt
+          echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Comment QA Deployment URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `🚀 QA Deployment: ${process.env.DEPLOYMENT_URL}`
+            })
+
+  # manual approval gate for staging
+  approve-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-qa
+    environment: staging-approval
+    steps:
+      - name: Manual Approval Required
+        run: echo "Waiting for manual approval to deploy to staging"
+
+  # deploy to staging after approval
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: approve-staging
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Staging
+        run: |
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --target=staging > deployment-url.txt
+          echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Comment Staging Deployment URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `🚀 Staging Deployment: ${process.env.DEPLOYMENT_URL}`
             })
 
   # manual approval gate for production
   approve-production:
     runs-on: ubuntu-latest
-    needs: deploy-dev
+    needs: deploy-staging
     environment: production-approval
     steps:
       - name: Manual Approval Required
