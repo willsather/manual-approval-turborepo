@@ -1,6 +1,6 @@
 # Manual Approval Turborepo
 
-Turborepo with manual approval for Vercel production deployments.
+Turborepo with two applications manual approval for Vercel production deployments.
 
 ## Deployment Flow
 
