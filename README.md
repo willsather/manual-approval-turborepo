@@ -4,9 +4,11 @@ Turborepo with two applications manual approval for Vercel production deployment
 
 ## Deployment Flow
 
+![Vercel CI/CD Architecture](assets/vercel-cicd.png)
+
 1. **PR** → automatic preview deployment (Vercel)
 2. **Merge to main** → automatic dev/qa deployment
-3. **Manual approval** → promote to production (no rebuild)
+3. **Manual approval** → promote to production (no rebuild, just updates `current` deployment)
 
 ## Setup
 
@@ -15,22 +17,17 @@ Turborepo with two applications manual approval for Vercel production deployment
 Add to repository settings → Secrets and variables → Actions:
 
 - `VERCEL_TOKEN`: [Create token](https://vercel.com/account/tokens)
-- `VERCEL_ORG_ID`: Run `vercel link` then check `.vercel/project.json`
-- `VERCEL_PROJECT_ID`: Run `vercel link` then check `.vercel/project.json`
-
-### GitHub Environments
-
-Create in repository settings → Environments:
-
-1. **dev** - no protection rules
-2. **production-approval** - enable "Required reviewers" (add yourself)
-3. **production** - no protection rules
+- `VERCEL_TEAM`: Team slug from Vercel URL (e.g., `my-team` from `vercel.com/my-team`)
 
 ## How to Deploy to Production
 
-1. Merge PR to main
-2. Dev/QA deploys automatically
-3. Go to Actions tab → find workflow run
-4. Click "Review deployments" button
-5. Approve "production-approval" environment
-6. Production promotion runs (promotes existing deployment)
+1. Merge PR to main - dev/qa deploys automatically to staging
+2. Test staged deployment
+3. Go to Actions tab → "promote" workflow → "Run workflow"
+4. Enter deployment URL (e.g., `https://your-app-abc123.vercel.app`)
+5. Click "Run workflow"
+6. Deployment promoted to production (no rebuild)
+
+## References
+
+- [Vercel: Staging and Promoting Deployments](https://vercel.com/docs/deployments/promoting-a-deployment#staging-and-promoting-a-production-deployment)
